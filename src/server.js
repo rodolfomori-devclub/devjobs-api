@@ -4,6 +4,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path = require('path');
+const fs = require('fs');
 const { PrismaClient } = require('@prisma/client');
 
 // Importando rotas
@@ -13,77 +15,40 @@ const companyRoutes = require('./routes/company.routes');
 const jobRoutes = require('./routes/job.routes');
 const adminRoutes = require('./routes/admin.routes');
 
+// Garantir que os diretórios de upload existam
+const uploadDirs = ['uploads', 'uploads/resumes', 'uploads/profile-pictures'];
+uploadDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
 // Inicialização
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
+// Configuração CORS
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || '*',
+  optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(helmet()); // Segurança de headers HTTP
-app.use(cors()); // Permitir acesso cross-origin
+app.use(helmet({
+  contentSecurityPolicy: false, // Desabilitar para desenvolvimento
+  crossOriginResourcePolicy: { policy: 'cross-origin' } // Permitir acesso a recursos
+})); 
+app.use(cors(corsOptions)); // Permitir acesso cross-origin
 app.use(express.json()); // Parsing de JSON
+app.use(express.urlencoded({ extended: true })); // Parsing de form data
 app.use(morgan('dev')); // Logging de requisições
+
+// Servir arquivos estáticos
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Middleware para disponibilizar o Prisma Client para os controladores
 app.use((req, res, next) => {
   req.prisma = prisma;
   next();
 });
-
-// Rotas
-app.use('/api/auth', authRoutes);
-app.use('/api/students', studentRoutes);
-app.use('/api/companies', companyRoutes);
-app.use('/api/jobs', jobRoutes);
-app.use('/api/admin', adminRoutes);
-
-// Teste de conexão com o banco de dados
-app.get('/api/health', async (req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return res.status(200).json({
-      status: 'success',
-      message: 'Database connection established',
-      timestamp: new Date()
-    });
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    return res.status(500).json({
-      status: 'error',
-      message: 'Database connection failed',
-      error: error.message,
-      timestamp: new Date()
-    });
-  }
-});
-
-// Tratamento de rota não encontrada
-app.use((req, res) => {
-  res.status(404).json({
-    status: 'error',
-    message: 'Route not found'
-  });
-});
-
-// Tratamento global de erros
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.statusCode || 500).json({
-    status: 'error',
-    message: err.message || 'Internal Server Error'
-  });
-});
-
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-// Tratamento de encerramento
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  console.log('Disconnected from database');
-  process.exit(0);
-});
-
-module.exports = app;
