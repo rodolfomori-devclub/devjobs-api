@@ -9,7 +9,7 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_USER: devjobs
-      POSTGRES_PASSWORD: dev#jobs@2025
+      POSTGRES_PASSWORD: devjobs2025club
       POSTGRES_DB: devjobs
     volumes:
       - postgres_data:/var/lib/postgresql/data
