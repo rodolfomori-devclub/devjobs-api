@@ -1,0 +1,196 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de usuário (base para alunos e empresas)
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  userType      UserType
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student       Student?
+  company       Company?
+  admin         Admin?
+}
+
+// Modelo de aluno
+model Student {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Dados pessoais
+  name              String
+  phone             String
+  gender            String?
+  city              String?
+  state             String?
+  country           String    @default("Brasil")
+  specialNeeds      String?
+  
+  // Imagens
+  profilePicture    String?
+  coverPicture      String?
+  
+  // Links e CV
+  portfolioUrl      String?
+  githubUrl         String?
+  linkedinUrl       String?
+  resumeUrl         String?
+  
+  // Freelancer
+  isFreelancer      Boolean   @default(false)
+  
+  // Bio
+  bio               String?
+  
+  // Relacionamentos
+  skills            Skill[]
+  experiences       Experience[]
+  applications      Application[]
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Modelo de habilidades do aluno
+model Skill {
+  id          String   @id @default(uuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  name        String
+  level       Int      // 1-5
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([studentId, name])
+}
+
+// Modelo de experiência do aluno
+model Experience {
+  id          String   @id @default(uuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  company     String
+  role        String
+  startDate   DateTime
+  endDate     DateTime?
+  description String?
+  current     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Modelo de empresa
+model Company {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name             String
+  responsibleName  String
+  cnpj             String   @unique
+  
+  // Relacionamentos
+  jobs             Job[]
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// Modelo de vaga
+model Job {
+  id               String     @id @default(uuid())
+  companyId        String
+  company          Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  title            String
+  level            JobLevel
+  locationType     LocationType
+  location         String?
+  salary           String?    // Pode ser "A combinar"
+  description      String
+  benefits         String?
+  contactInfo      String
+  
+  // Relacionamentos
+  requiredSkills   JobSkill[]
+  applications     Application[]
+  
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  isActive         Boolean    @default(true)
+}
+
+// Modelo de habilidades requeridas para a vaga
+model JobSkill {
+  id        String   @id @default(uuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([jobId, name])
+}
+
+// Modelo de candidatura
+model Application {
+  id        String           @id @default(uuid())
+  studentId String
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status    ApplicationStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([studentId, jobId])
+}
+
+// Modelo de administrador
+model Admin {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Enums
+enum UserType {
+  STUDENT
+  COMPANY
+  ADMIN
+}
+
+enum JobLevel {
+  JUNIOR
+  PLENO
+  SENIOR
+}
+
+enum LocationType {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum ApplicationStatus {
+  PENDING
+  VIEWED
+  INTERVIEWING
+  ACCEPTED
+  REJECTED
+}
